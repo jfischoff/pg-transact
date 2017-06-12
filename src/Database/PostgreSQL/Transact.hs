@@ -13,6 +13,8 @@ import qualified Data.ByteString as BS
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
   deriving (MonadTrans, MonadThrow)
 
+type DB = DBT IO
+
 instance Functor m => Functor (DBT m) where
   fmap f = DBT . fmap f . unDBT
 
