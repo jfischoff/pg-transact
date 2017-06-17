@@ -8,6 +8,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
 import Control.Monad.Catch
 import Data.Int
+import Control.Monad
 import qualified Data.ByteString as BS
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
@@ -35,21 +36,12 @@ isClass25 SqlError{..} = BS.take 2 sqlState == "25"
 instance (MonadIO m, MonadMask m) => MonadCatch (DBT m) where
   catch (DBT act) handler = DBT $ mask $ \restore -> do
     conn <- ask
-    sp <- liftIO $ newSavepoint conn
-    let setup = catch (restore act)
-              $ \e -> case fromException e of
-                        Nothing -> throwM e
-                        Just x  -> do
-                          liftIO $ rollbackToSavepoint conn sp
-                          unDBT $ handler x
+    sp   <- liftIO $ newSavepoint conn
+    let setup = catch (restore act) $ \e -> do
+                  liftIO $ rollbackToSavepoint conn sp
+                  unDBT $ handler e
 
-        cleanup = liftIO $ releaseSavepoint conn sp `catch` \e ->
-                    if isClass25 e then
-                      return () -- transaction error. We don't care.
-                    else
-                      throwM e
-
-    setup `finally` cleanup
+    setup `finally` liftIO (tryJust (guard . isClass25) (releaseSavepoint conn sp))
 
 getConnection :: Monad m => DBT m Connection
 getConnection = DBT ask
