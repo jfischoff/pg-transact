@@ -1,7 +1,7 @@
 name:                pg-transact
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis: Another postgresql-simple transaction monad
+description: Another postgresql-simple transaction monad
 homepage:            https://github.com/githubuser/pg-transact#readme
 license:             MIT
 license-file:        LICENSE
