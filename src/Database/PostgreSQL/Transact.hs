@@ -146,3 +146,17 @@ executeMany q xs = getConnection >>= \conn -> liftIO $ Simple.executeMany conn q
 -- Throws 'FormatError' if the query could not be formatted correctly.
 returning :: (ToRow q, FromRow r, MonadIO m) => Query -> [q] -> DBT m [r]
 returning q xs = getConnection >>= \conn -> liftIO $ Simple.returning conn q xs
+
+
+-- | Format a query string.
+--
+-- This function is exposed to help with debugging and logging. Do not
+-- use it to prepare queries for execution.
+--
+-- String parameters are escaped according to the character set in use
+-- on the 'Connection'.
+--
+-- Throws 'FormatError' if the query string could not be formatted
+-- correctly.
+formatQuery :: (ToRow q, MonadIO m) => Query -> q -> DBT m BS.ByteString
+formatQuery q xs = getConnection >>= \conn -> liftIO $ Simple.formatQuery conn q xs

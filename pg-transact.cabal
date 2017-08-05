@@ -1,5 +1,5 @@
 name:                pg-transact
-version:             0.1.0.1
+version:             0.1.1.1
 synopsis: Another postgresql-simple transaction monad
 description: Another postgresql-simple transaction monad
 homepage:            https://github.com/jfischoff/pg-transact#readme
