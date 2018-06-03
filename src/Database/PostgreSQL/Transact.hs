@@ -2,6 +2,7 @@
 module Database.PostgreSQL.Transact where
 import Control.Monad.Trans.Reader
 import Database.PostgreSQL.Simple as Simple
+import Database.PostgreSQL.Simple.Types as Simple
 import Database.PostgreSQL.Simple.Transaction
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -10,6 +11,7 @@ import Control.Monad.Catch
 import Data.Int
 import Control.Monad
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
   deriving (MonadTrans, MonadThrow)
@@ -160,3 +162,18 @@ returning q xs = getConnection >>= \conn -> liftIO $ Simple.returning conn q xs
 -- correctly.
 formatQuery :: (ToRow q, MonadIO m) => Query -> q -> DBT m BS.ByteString
 formatQuery q xs = getConnection >>= \conn -> liftIO $ Simple.formatQuery conn q xs
+
+newtype TooManyRows = TooManyRows String
+  deriving(Show, Eq)
+
+instance Exception TooManyRows
+
+queryOne_ :: FromRow b => Query -> DB (Maybe b)
+queryOne_ q = do
+  rows <- Database.PostgreSQL.Transact.query_ q
+  case rows of
+    []  -> return Nothing
+    [x] -> return $ Just x
+    _  -> do
+      let Simple.Query str = q
+      throwM $ TooManyRows $ BSC.unpack str
