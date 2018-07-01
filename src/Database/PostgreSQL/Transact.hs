@@ -168,6 +168,16 @@ newtype TooManyRows = TooManyRows String
 
 instance Exception TooManyRows
 
+queryOne :: (ToRow a, FromRow b) => Query -> a -> DB (Maybe b)
+queryOne q x = do
+  rows <- Database.PostgreSQL.Transact.query q x
+  case rows of
+    []  -> return Nothing
+    [x] -> return $ Just x
+    _  -> do
+      let Simple.Query str = q
+      throwM $ TooManyRows $ BSC.unpack str
+
 queryOne_ :: FromRow b => Query -> DB (Maybe b)
 queryOne_ q = do
   rows <- Database.PostgreSQL.Transact.query_ q
