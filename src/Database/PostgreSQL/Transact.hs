@@ -12,6 +12,7 @@ import Data.Int
 import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
+import qualified Control.Monad.Fail as Fail
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
   deriving (MonadTrans, MonadThrow)
@@ -31,6 +32,9 @@ instance MonadIO m => MonadIO (DBT m) where
 instance Monad m => Monad (DBT m) where
   return = lift . return
   DBT m >>= k = DBT $ m >>= unDBT . k
+
+instance Fail.MonadFail m => Fail.MonadFail (DBT m) where
+  fail = lift . Fail.fail
 
 isClass25 :: SqlError -> Bool
 isClass25 SqlError{..} = BS.take 2 sqlState == "25"
@@ -173,7 +177,7 @@ queryOne q x = do
   rows <- Database.PostgreSQL.Transact.query q x
   case rows of
     []  -> return Nothing
-    [x] -> return $ Just x
+    [a] -> return $ Just a
     _  -> do
       let Simple.Query str = q
       throwM $ TooManyRows $ BSC.unpack str
