@@ -6,7 +6,6 @@ module Database.PostgreSQL.TransactSpec where
 import           Control.Monad              (void)
 import           Control.Monad.Catch
 import qualified Data.ByteString.Char8      as BSC
-import           Data.String
 import           Data.Typeable
 import qualified Database.PostgreSQL.Simple as PS
 import           Database.PostgreSQL.Simple ( Connection
@@ -16,7 +15,8 @@ import           Database.PostgreSQL.Simple ( Connection
 import           Database.PostgreSQL.Simple.SqlQQ
 import           Database.PostgreSQL.Transact
 import qualified Database.Postgres.Temp as Temp
-import           Test.Hspec
+import           Test.Hspec (Spec, describe, beforeAll, before, after, afterAll, it, shouldThrow)
+import           Test.Hspec.Expectations.Lifted (shouldReturn)
 
 -------------------------       Test DB Creation       -------------------------
 createDB :: IO (Connection, Temp.DB)
@@ -33,10 +33,18 @@ shutdown (conn, db) = do
   PS.close conn
   void $ Temp.stop db
 
+withDb :: DB a -> (Connection, b) -> IO a
+withDb action (conn, _) = runDB conn action
+
 -------------------------        Test Utilities        -------------------------
 insertFruit :: String -> DB ()
 insertFruit fruit
   = void $ execute [sql| INSERT INTO fruit (name) VALUES (?) |] (Only fruit)
+
+getFruits :: DB [String]
+getFruits
+  = fmap (map fromOnly)
+  $ query_ [sql|SELECT name FROM fruit ORDER BY name|]
 
 fruits :: Connection -> IO [String]
 fruits conn
@@ -45,11 +53,6 @@ fruits conn
 
 runDB :: Connection -> DB a -> IO a
 runDB = flip runDBTSerializable
-
-shouldBeM :: (Eq a, Show a) => IO a -> a -> IO ()
-shouldBeM action expected = do
-    actual <- action
-    actual `shouldBe` expected
 
 -- Simple exception type for testing
 data Forbidden = Forbidden
@@ -66,7 +69,7 @@ spec = describe "TransactionSpec" $ do
             let apple = "apple"
             runDB conn $ insertFruit apple
 
-            fruits conn `shouldBeM` ["apple"]
+            fruits conn `shouldReturn` ["apple"]
 
         it "execute_ rollbacks on exception" $ \(conn, _) -> do
             flip shouldThrow (\(SqlError {}) -> True) $
@@ -76,15 +79,15 @@ spec = describe "TransactionSpec" $ do
                     -- constraint on 'name'
                     insertFruit "apple"
 
-            fruits conn `shouldBeM` ["apple"]
+            fruits conn `shouldReturn` ["apple"]
 
-    before createDB $ do
+    before createDB $ after shutdown $ do
         it "multiple execute_'s succeed" $ \(conn, _) -> do
             runDB conn $ do
                 insertFruit "grapes"
                 insertFruit "orange"
 
-            fruits conn `shouldBeM` ["grapes", "orange"]
+            fruits conn `shouldReturn` ["grapes", "orange"]
 
         it "throwM causes a rollback" $ \(conn, _) -> do
             flip shouldThrow (\Forbidden -> True) $
@@ -93,7 +96,7 @@ spec = describe "TransactionSpec" $ do
                     () <- throwM Forbidden
                     insertFruit "banana"
 
-            fruits conn `shouldBeM` []
+            fruits conn `shouldReturn` []
 
         it "query recovers when exception is caught" $ \(conn, _) -> do
             runDB conn $ do
@@ -103,7 +106,7 @@ spec = describe "TransactionSpec" $ do
                     insertFruit "salak"
                     throwM Forbidden
 
-            fruits conn `shouldBeM` ["banana", "tomato"]
+            fruits conn `shouldReturn` ["banana", "tomato"]
 
         it "multiple catch statements work correctly" $ \(conn, _) -> do
             runDB conn $ do
@@ -116,7 +119,7 @@ spec = describe "TransactionSpec" $ do
                         insertFruit "salak"
                         throwM Forbidden
 
-            fruits conn `shouldBeM` ["banana", "blueberry", "frankenberry"]
+            fruits conn `shouldReturn` ["banana", "blueberry", "frankenberry"]
 
         it "alternate branches can also have savepoints" $ \(conn, _) -> do
             runDB conn $ do
@@ -128,7 +131,7 @@ spec = describe "TransactionSpec" $ do
                             insertFruit "salak"
                             throwM Forbidden
 
-            fruits conn `shouldBeM` ["banana", "blueberry", "frankenberry"]
+            fruits conn `shouldReturn` ["banana", "blueberry", "frankenberry"]
 
         it "releasing silently fails if the transaction errors" $ \(conn, _) -> do
             runDB conn $ do
@@ -136,4 +139,21 @@ spec = describe "TransactionSpec" $ do
                 catchAll (void $ execute_ [sql| ABORT |]) $
                     \_ -> insertFruit "tomato"
 
-            fruits conn `shouldBeM` []
+            fruits conn `shouldReturn` []
+
+        it "rollback ... rollbacks effects on expected finish" $ withDb $ do
+          insertFruit "grapes"
+          rollback $ do
+            insertFruit "oranges"
+            getFruits `shouldReturn` ["grapes", "oranges"]
+
+          getFruits `shouldReturn` ["grapes"]
+
+        it "rollback ... rollbacks effects on exception" $ withDb $ do
+          insertFruit "grapes"
+          _ :: Either Forbidden () <- try $ rollback $ do
+              insertFruit "oranges"
+              getFruits `shouldReturn` ["grapes", "oranges"]
+              throwM Forbidden
+
+          getFruits `shouldReturn` ["grapes"]

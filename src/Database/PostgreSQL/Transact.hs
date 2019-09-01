@@ -1,9 +1,10 @@
 {-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving, RecordWildCards, OverloadedStrings #-}
 module Database.PostgreSQL.Transact where
 import Control.Monad.Trans.Reader
-import Database.PostgreSQL.Simple as Simple
+import qualified Database.PostgreSQL.Simple as Simple
+import Database.PostgreSQL.Simple (ToRow, FromRow, Connection, SqlError (..))
 import Database.PostgreSQL.Simple.Types as Simple
-import Database.PostgreSQL.Simple.Transaction
+import qualified Database.PostgreSQL.Simple.Transaction as Simple
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Control
@@ -11,7 +12,6 @@ import Control.Monad.Catch
 import Data.Int
 import Control.Monad
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
 import qualified Control.Monad.Fail as Fail
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
@@ -42,27 +42,43 @@ isClass25 SqlError{..} = BS.take 2 sqlState == "25"
 instance (MonadIO m, MonadMask m) => MonadCatch (DBT m) where
   catch (DBT act) handler = DBT $ mask $ \restore -> do
     conn <- ask
-    sp   <- liftIO $ newSavepoint conn
+    sp   <- liftIO $ Simple.newSavepoint conn
     let setup = catch (restore act) $ \e -> do
-                  liftIO $ rollbackToSavepoint conn sp
+                  liftIO $ Simple.rollbackToSavepoint conn sp
                   unDBT $ handler e
 
-    setup `finally` liftIO (tryJust (guard . isClass25) (releaseSavepoint conn sp))
+    setup `finally` liftIO (tryJust (guard . isClass25) (Simple.releaseSavepoint conn sp))
+
+instance (MonadIO m, MonadMask m) => MonadMask (DBT m) where
+  mask a = DBT $ mask $ \u -> unDBT (a $ q u)
+    where q :: (ReaderT Connection m a -> ReaderT Connection m a) -> DBT m a -> DBT m a
+          q u (DBT b) = DBT $ u b
+
+  uninterruptibleMask a =
+    DBT $ uninterruptibleMask $ \u -> unDBT (a $ q u)
+      where q :: (ReaderT Connection m a -> ReaderT Connection m a) -> DBT m a -> DBT m a
+            q u (DBT b) = DBT $ u b
+
+  generalBracket acquire release use = DBT $
+    generalBracket
+      (unDBT acquire)
+      (\resource exitCase -> unDBT (release resource exitCase))
+      (\resource -> unDBT (use resource))
 
 getConnection :: Monad m => DBT m Connection
 getConnection = DBT ask
 
-runDBT :: MonadBaseControl IO m => DBT m a -> IsolationLevel -> Connection -> m a
+runDBT :: MonadBaseControl IO m => DBT m a -> Simple.IsolationLevel -> Connection -> m a
 runDBT action level conn
   = control
-  $ \run -> withTransactionLevel level conn
+  $ \run -> Simple.withTransactionLevel level conn
   $ run
   $ runReaderT (unDBT action) conn
 
 runDBTSerializable :: MonadBaseControl IO m => DBT m a -> Connection -> m a
 runDBTSerializable action conn
   = control
-  $ \run -> withTransactionSerializable conn
+  $ \run -> Simple.withTransactionSerializable conn
   $ run
   $ runReaderT (unDBT action) conn
 
@@ -167,27 +183,32 @@ returning q xs = getConnection >>= \conn -> liftIO $ Simple.returning conn q xs
 formatQuery :: (ToRow q, MonadIO m) => Query -> q -> DBT m BS.ByteString
 formatQuery q xs = getConnection >>= \conn -> liftIO $ Simple.formatQuery conn q xs
 
-newtype TooManyRows = TooManyRows String
-  deriving(Show, Eq)
-
-instance Exception TooManyRows
-
-queryOne :: (ToRow a, FromRow b) => Query -> a -> DB (Maybe b)
+queryOne :: (MonadIO m, MonadThrow m, ToRow a, FromRow b) => Query -> a -> DBT m (Maybe b)
 queryOne q x = do
-  rows <- Database.PostgreSQL.Transact.query q x
+  rows <- query q x
   case rows of
     []  -> return Nothing
     [a] -> return $ Just a
-    _  -> do
-      let Simple.Query str = q
-      throwM $ TooManyRows $ BSC.unpack str
+    _   -> return Nothing
 
-queryOne_ :: FromRow b => Query -> DB (Maybe b)
+queryOne_ :: (MonadIO m, MonadThrow m, FromRow b) => Query -> DBT m (Maybe b)
 queryOne_ q = do
-  rows <- Database.PostgreSQL.Transact.query_ q
+  rows <- query_ q
   case rows of
     []  -> return Nothing
     [x] -> return $ Just x
-    _  -> do
-      let Simple.Query str = q
-      throwM $ TooManyRows $ BSC.unpack str
+    _   -> return Nothing
+
+-- | Create a 'Savepoint'.
+savepoint :: DB Savepoint
+savepoint = getConnection >>= liftIO . Simple.newSavepoint
+
+-- | Release the 'Savepoint' and discard the effects.
+rollbackToAndReleaseSavepoint :: Savepoint -> DB ()
+rollbackToAndReleaseSavepoint sp = getConnection >>= liftIO . flip Simple.rollbackToAndReleaseSavepoint sp
+
+-- | Run an action and discard the effects.
+rollback :: DB () -> DB ()
+rollback actionToRollback = mask $ \restore -> do
+  sp <- savepoint
+  restore actionToRollback `finally` rollbackToAndReleaseSavepoint sp
