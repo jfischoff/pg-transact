@@ -13,9 +13,17 @@ import Data.Int
 import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Control.Monad.Fail as Fail
+import Control.Applicative
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
   deriving (MonadTrans, MonadThrow)
+
+instance (Applicative m, Semigroup a) => Semigroup (DBT m a) where
+  (<>) = liftA2 (<>)
+
+instance (Applicative m, Monoid a) => Monoid (DBT m a) where
+  mempty = pure mempty
+  mappend = (<>)
 
 type DB = DBT IO
 
