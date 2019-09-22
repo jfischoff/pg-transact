@@ -90,6 +90,9 @@ runDBTSerializable action conn
   $ run
   $ runReaderT (unDBT action) conn
 
+runDBTNoTransaction :: DBT m a -> Connection -> m a
+runDBTNoTransaction action conn = runReaderT (unDBT action) conn
+
 -- | Perform a @SELECT@ or other SQL query that is expected to return
 -- results. All results are retrieved and converted before this
 -- function returns.
