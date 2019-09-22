@@ -215,8 +215,8 @@ savepoint = getConnection >>= liftIO . Simple.newSavepoint
 rollbackToAndReleaseSavepoint :: Savepoint -> DB ()
 rollbackToAndReleaseSavepoint sp = getConnection >>= liftIO . flip Simple.rollbackToAndReleaseSavepoint sp
 
--- | Run an action and discard the effects.
-rollback :: DB () -> DB ()
+-- | Run an action and discard the effects but return the result
+rollback :: DB a -> DB a
 rollback actionToRollback = mask $ \restore -> do
   sp <- savepoint
   restore actionToRollback `finally` rollbackToAndReleaseSavepoint sp
