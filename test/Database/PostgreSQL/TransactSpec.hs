@@ -91,7 +91,7 @@ instance Exception Forbidden
 
 -------------------------         Tests Start          -------------------------
 spec :: Spec
-spec = describe "TransactionSpec" $ parallel $ do
+spec = describe "TransactionSpec" $ do
   aroundAll withSetup $ do
     it "execute_ happen path succeeds" $ \conn -> do
         let apple = "apple"
