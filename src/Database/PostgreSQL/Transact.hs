@@ -194,7 +194,7 @@ returning q xs = getConnection >>= \conn -> liftIO $ Simple.returning conn q xs
 formatQuery :: (ToRow q, MonadIO m) => Query -> q -> DBT m BS.ByteString
 formatQuery q xs = getConnection >>= \conn -> liftIO $ Simple.formatQuery conn q xs
 
-queryOne :: (MonadIO m, MonadThrow m, ToRow a, FromRow b) => Query -> a -> DBT m (Maybe b)
+queryOne :: (MonadIO m, ToRow a, FromRow b) => Query -> a -> DBT m (Maybe b)
 queryOne q x = do
   rows <- query q x
   case rows of
@@ -202,7 +202,7 @@ queryOne q x = do
     [a] -> return $ Just a
     _   -> return Nothing
 
-queryOne_ :: (MonadIO m, MonadThrow m, FromRow b) => Query -> DBT m (Maybe b)
+queryOne_ :: (MonadIO m, FromRow b) => Query -> DBT m (Maybe b)
 queryOne_ q = do
   rows <- query_ q
   case rows of
