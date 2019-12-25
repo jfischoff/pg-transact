@@ -31,10 +31,10 @@ test-suite pg-transact-test
   main-is:             Spec.hs
   other-modules: Database.PostgreSQL.TransactSpec
   build-depends: base
+               , async
                , bytestring
                , exceptions
                , hspec
-               , hspec-discover
                , postgresql-simple
                , pg-transact
                , tmp-postgres >= 1.34.0.0
