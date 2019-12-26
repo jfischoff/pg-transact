@@ -34,3 +34,11 @@ It's a lot simplier if I can update the changelog and package version in the fea
 Jumping between ligpq and postgresql-simple is making me feel like there is a slighter higher level library that is need for some low level things.
 
 This connection canceling thing seem pointless. The problems are probably much easier to fix. I think the code could be useful somewhere so I am keeping it for now.
+
+abort doesn't even make sense in a transaction monad. You can't handle exception when you have aborted.
+
+I am either fixing or introducing a bug with e1d8b36.
+
+My tests are still failing but no more uncaught exceptions.
+
+Huh calling ROLLBACK when there is no active transaction is not an error. Just a warning.

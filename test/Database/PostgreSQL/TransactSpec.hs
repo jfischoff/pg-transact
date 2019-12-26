@@ -202,7 +202,7 @@ spec = describe "TransactionSpec" $ do
         insertFruit "oranges"
         getFruits `shouldReturn` ["grapes", "oranges"]
 
-      getFruits `shouldReturn` ["grapes"]
+      getFruits `shouldReturn` []
 
   aroundAll withSetup $ do
     it "abort ... abort effects on exception" $ withDb $ do
@@ -212,8 +212,8 @@ spec = describe "TransactionSpec" $ do
           getFruits `shouldReturn` ["grapes", "oranges"]
           throwM Forbidden
 
-      getFruits `shouldReturn` ["grapes"]
+      getFruits `shouldReturn` []
 
   aroundAll withSetup $ do
-    it "abort ... abort throws when nested" $ \conn -> do
-      runDB conn (abort (abort (pure ()))) `shouldThrow` (\(_ :: SqlError)-> True)
+    it "abort ... abort throws a warning only when nested" $ \conn -> do
+      runDB conn (abort (abort (pure ())))
