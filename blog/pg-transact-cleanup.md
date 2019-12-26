@@ -42,3 +42,7 @@ I am either fixing or introducing a bug with e1d8b36.
 My tests are still failing but no more uncaught exceptions.
 
 Huh calling ROLLBACK when there is no active transaction is not an error. Just a warning.
+
+`abort` needs to end the transaction. All calls afterwards should not get called.
+
+That means that I need to either need to add an Either or throw an Abort exception. I think that is best until I'm sure I want to change the interface.

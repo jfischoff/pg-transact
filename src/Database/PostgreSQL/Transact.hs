@@ -14,6 +14,7 @@ import Control.Monad
 import qualified Data.ByteString as BS
 import qualified Control.Monad.Fail as Fail
 import Control.Applicative
+import Data.Typeable
 
 newtype DBT m a = DBT { unDBT :: ReaderT Connection m a }
   deriving (MonadTrans, MonadThrow)
@@ -57,7 +58,9 @@ instance (MonadIO m, MonadMask m) => MonadCatch (DBT m) where
     let setup = catch (restore act) $ \e -> do
                   liftIO $ Simple.rollbackToSavepoint conn sp
                     `catch` (\re -> if isNoTransaction re then pure () else throwM re)
-                  unDBT $ handler e
+                  if typeRep (Proxy @ Abort) == typeOf e
+                    then (throwM Abort)
+                    else unDBT $ handler e
 
     setup `finally` liftIO (tryJust (guard . isClass25) (Simple.releaseSavepoint conn sp))
 
@@ -228,8 +231,16 @@ rollback actionToRollback = mask $ \restore -> do
   sp <- savepoint
   restore actionToRollback `finally` rollbackToAndReleaseSavepoint sp
 
+data Abort = Abort
+  deriving (Show, Eq, Typeable)
+
+instance Exception Abort
+
 -- | A 'abort' is a similar to 'rollback' but calls 'ROLLBACK' to abort the
 --   transaction. 'abort's is global. It affects everything before and after
 --   it is called. Duplicate 'abort's do nothing.
+--   Calling 'abort' throws an 'Abort' exception that is not caught
+--   by the transaction running functions. If you call 'abort' you need to
+--   also be prepared to handle the 'Abort' exception.
 abort :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
-abort = flip finally (execute_ "ROLLBACK")
+abort = flip finally ((execute_ "ROLLBACK") >> throwM Abort)

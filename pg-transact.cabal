@@ -14,7 +14,9 @@ extra-source-files: README.md
                   , CHANGELOG.md
 cabal-version:       >=1.10
 
+
 library
+  default-extensions: TypeApplications
   hs-source-dirs:      src
   exposed-modules:     Database.PostgreSQL.Transact
   build-depends:       base >= 4.7 && < 5

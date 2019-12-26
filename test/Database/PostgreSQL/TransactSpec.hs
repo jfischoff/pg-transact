@@ -196,16 +196,17 @@ spec = describe "TransactionSpec" $ do
       getFruits `shouldReturn` ["grapes"]
 
   aroundAll withSetup $ do
-    it "abort ... abort effects on expected finish" $ withDb $ do
+    it "abort ... abort effects on expected finish" $ \conn -> runDB conn (do
       insertFruit "grapes"
       abort $ do
         insertFruit "oranges"
         getFruits `shouldReturn` ["grapes", "oranges"]
 
       getFruits `shouldReturn` []
+      ) `shouldThrow` (\Abort -> True)
 
   aroundAll withSetup $ do
-    it "abort ... abort effects on exception" $ withDb $ do
+    it "abort ... abort effects on exception" $ \conn -> runDB conn ( do
       insertFruit "grapes"
       _ :: Either Forbidden () <- try $ abort $ do
           insertFruit "oranges"
@@ -213,7 +214,12 @@ spec = describe "TransactionSpec" $ do
           throwM Forbidden
 
       getFruits `shouldReturn` []
+      ) `shouldThrow` (\Abort -> True)
 
   aroundAll withSetup $ do
     it "abort ... abort throws a warning only when nested" $ \conn -> do
-      runDB conn (abort (abort (pure ())))
+      runDB conn (abort (abort (pure ()))) `shouldThrow` (\Abort -> True)
+
+  aroundAll withSetup $ do
+    it "abort ... can't be caught" $ \conn -> do
+      runDB conn (abort (pure ()) `catch` (\Abort -> pure ())) `shouldThrow` (\Abort -> True)
