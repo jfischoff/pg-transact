@@ -14,7 +14,7 @@ import           Database.PostgreSQL.Simple ( Connection
 import           Database.PostgreSQL.Simple.SqlQQ
 import           Database.PostgreSQL.Transact
 import qualified Database.Postgres.Temp as Temp
-import           Test.Hspec (Spec, SpecWith, describe, beforeAll, afterAll, it, shouldThrow, runIO)
+import           Test.Hspec (Spec, SpecWith, describe, beforeAll, afterAll, it, runIO, shouldThrow)
 import           Test.Hspec.Expectations.Lifted (shouldReturn)
 import           Data.IORef
 import           Control.Concurrent
@@ -22,6 +22,9 @@ import           Control.Concurrent.Async
 import           Data.Foldable
 import qualified Control.Exception as E
 import           Control.Monad ((<=<))
+
+-- import qualified Database.PostgreSQL.Simple.Internal as PS
+-- import qualified Database.PostgreSQL.LibPQ as PG
 
 aroundAll :: forall a. ((a -> IO ()) -> IO ()) -> SpecWith a -> Spec
 aroundAll withFunc specWith = do
@@ -59,7 +62,9 @@ withSetup f = either E.throwIO pure <=< Temp.withDbCache $ \dbCache ->
     withConn db $ \conn -> do
       void $ PS.execute_ conn $
           [sql| CREATE TABLE fruit (name VARCHAR(100) PRIMARY KEY ) |]
+--      f conn `finally` (PS.withConnection conn (maybe (print "invalid") (print <=< PG.cancel) <=< PG.getCancel))
       f conn
+
 
 
 withDb :: DB a -> Connection -> IO a
@@ -190,3 +195,32 @@ spec = describe "TransactionSpec" $ do
           throwM Forbidden
 
       getFruits `shouldReturn` ["grapes"]
+
+  aroundAll withSetup $ do
+    it "abort ... abort effects on expected finish" $ \conn -> runDB conn (do
+      insertFruit "grapes"
+      abort $ do
+        insertFruit "oranges"
+        getFruits `shouldReturn` ["grapes", "oranges"]
+
+      getFruits `shouldReturn` []
+      ) `shouldThrow` (\Abort -> True)
+
+  aroundAll withSetup $ do
+    it "abort ... abort effects on exception" $ \conn -> runDB conn ( do
+      insertFruit "grapes"
+      _ :: Either Forbidden () <- try $ abort $ do
+          insertFruit "oranges"
+          getFruits `shouldReturn` ["grapes", "oranges"]
+          throwM Forbidden
+
+      getFruits `shouldReturn` []
+      ) `shouldThrow` (\Abort -> True)
+
+  aroundAll withSetup $ do
+    it "abort ... abort throws a warning only when nested" $ \conn -> do
+      runDB conn (abort (abort (pure ()))) `shouldThrow` (\Abort -> True)
+
+  aroundAll withSetup $ do
+    it "abort ... can't be caught" $ \conn -> do
+      runDB conn (abort (pure ()) `catch` (\Abort -> pure ())) `shouldThrow` (\Abort -> True)
