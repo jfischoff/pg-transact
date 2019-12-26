@@ -243,4 +243,4 @@ instance Exception Abort
 --   by the transaction running functions. If you call 'abort' you need to
 --   also be prepared to handle the 'Abort' exception.
 abort :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
-abort = flip finally ((execute_ "ROLLBACK") >> throwM Abort)
+abort = flip finally (throwM Abort)

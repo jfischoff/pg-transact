@@ -1,3 +1,6 @@
+- 0.3.1.1
+  - #15 Remove unnecessary `ROLLBACK` call in `abort`
+
 - 0.3.1.0
   - #5 Add abort
 
