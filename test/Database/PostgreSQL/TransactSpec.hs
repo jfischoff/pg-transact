@@ -7,7 +7,6 @@ import           Control.Monad              (void)
 import           Control.Monad.Catch
 import           Data.Typeable
 import qualified Database.PostgreSQL.Simple as PS
--- import qualified Database.PostgreSQL.Simple.Internal as PS
 import           Database.PostgreSQL.Simple ( Connection
                                             , Only (..)
                                             , SqlError (..)
@@ -23,6 +22,8 @@ import           Control.Concurrent.Async
 import           Data.Foldable
 import qualified Control.Exception as E
 import           Control.Monad ((<=<))
+
+-- import qualified Database.PostgreSQL.Simple.Internal as PS
 -- import qualified Database.PostgreSQL.LibPQ as PG
 
 aroundAll :: forall a. ((a -> IO ()) -> IO ()) -> SpecWith a -> Spec
