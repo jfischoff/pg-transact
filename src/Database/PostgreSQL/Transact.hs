@@ -47,12 +47,16 @@ instance Fail.MonadFail m => Fail.MonadFail (DBT m) where
 isClass25 :: SqlError -> Bool
 isClass25 SqlError{..} = BS.take 2 sqlState == "25"
 
+isNoTransaction :: SqlError -> Bool
+isNoTransaction SqlError{..} = sqlState == "25P01"
+
 instance (MonadIO m, MonadMask m) => MonadCatch (DBT m) where
   catch (DBT act) handler = DBT $ mask $ \restore -> do
     conn <- ask
     sp   <- liftIO $ Simple.newSavepoint conn
     let setup = catch (restore act) $ \e -> do
                   liftIO $ Simple.rollbackToSavepoint conn sp
+                    `catch` (\re -> if isNoTransaction re then pure () else throwM re)
                   unDBT $ handler e
 
     setup `finally` liftIO (tryJust (guard . isClass25) (Simple.releaseSavepoint conn sp))
@@ -227,4 +231,4 @@ rollback actionToRollback = mask $ \restore -> do
 -- | A 'abort' is a similar to 'rollback' but calls 'ROLLBACK' to abort the
 --   transaction. 'abort's cannot be composed but 'rollback's can.
 abort :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
-abort = error "abort"
+abort = bracket_ (execute_ "BEGIN") (execute_ "ROLLBACK")
