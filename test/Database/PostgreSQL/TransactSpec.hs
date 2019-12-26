@@ -14,7 +14,7 @@ import           Database.PostgreSQL.Simple ( Connection
 import           Database.PostgreSQL.Simple.SqlQQ
 import           Database.PostgreSQL.Transact
 import qualified Database.Postgres.Temp as Temp
-import           Test.Hspec (Spec, SpecWith, describe, beforeAll, afterAll, it, shouldThrow, runIO, parallel)
+import           Test.Hspec (Spec, SpecWith, describe, beforeAll, afterAll, it, shouldThrow, runIO)
 import           Test.Hspec.Expectations.Lifted (shouldReturn)
 import           Data.IORef
 import           Control.Concurrent

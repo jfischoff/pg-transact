@@ -211,15 +211,15 @@ queryOne_ q = do
     _   -> return Nothing
 
 -- | Create a 'Savepoint'.
-savepoint :: DBT m Savepoint
+savepoint :: MonadIO m => DBT m Savepoint
 savepoint = getConnection >>= liftIO . Simple.newSavepoint
 
 -- | Release the 'Savepoint' and discard the effects.
-rollbackToAndReleaseSavepoint :: Savepoint -> DBT m ()
+rollbackToAndReleaseSavepoint :: MonadIO m => Savepoint -> DBT m ()
 rollbackToAndReleaseSavepoint sp = getConnection >>= liftIO . flip Simple.rollbackToAndReleaseSavepoint sp
 
 -- | Run an action and discard the effects but return the result
-rollback :: DBT m a -> DBT m a
+rollback :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
 rollback actionToRollback = mask $ \restore -> do
   sp <- savepoint
   restore actionToRollback `finally` rollbackToAndReleaseSavepoint sp
