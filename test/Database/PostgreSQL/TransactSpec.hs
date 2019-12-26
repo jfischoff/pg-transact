@@ -214,7 +214,6 @@ spec = describe "TransactionSpec" $ do
 
       getFruits `shouldReturn` ["grapes"]
 
-  -- TODO test that aborting twice fails
   aroundAll withSetup $ do
     it "abort ... abort throws when nested" $ \conn -> do
       runDB conn (abort (abort (pure ()))) `shouldThrow` (\(_ :: SqlError)-> True)
