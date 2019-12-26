@@ -223,3 +223,8 @@ rollback :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
 rollback actionToRollback = mask $ \restore -> do
   sp <- savepoint
   restore actionToRollback `finally` rollbackToAndReleaseSavepoint sp
+
+-- | A 'abort' is a similar to 'rollback' but calls 'ROLLBACK' to abort the
+--   transaction. 'abort's cannot be composed but 'rollback's can.
+abort :: (MonadMask m, MonadIO m) => DBT m a -> DBT m a
+abort = error "abort"

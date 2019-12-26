@@ -19,3 +19,18 @@ CI. Check.
 Obvious sloppyness. Check.
 
 Should be addressed in 0.3.0.0.
+
+I've reflected on what's his name's suggestion to release less often and I've decided against it.
+
+If I think something is ready it is easier to get it out the door. Check it off the issues list.
+
+As a user I want more granular versions even if I pin through stack snapshots. If something breaks the more
+granular the versions the more likely I can get the feature I want and not the bug.
+
+Anyway. 0.3.1.0 is coming with abort.
+
+It's a lot simplier if I can update the changelog and package version in the feature PR. I have to keep everything linear which works out ok if the build is fast.
+
+Jumping between ligpq and postgresql-simple is making me feel like there is a slighter higher level library that is need for some low level things.
+
+This connection canceling thing seem pointless. The problems are probably much easier to fix. I think the code could be useful somewhere so I am keeping it for now.
