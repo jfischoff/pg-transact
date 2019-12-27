@@ -1,5 +1,5 @@
 # benchmarks
-- The lack a `with` resource api for criterion is annoying
+- The lack of a `with` resource api for criterion is annoying
 - `abort` is twice as fast as `rollback`
 
   ```
