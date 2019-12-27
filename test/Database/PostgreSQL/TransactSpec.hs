@@ -23,9 +23,6 @@ import           Data.Foldable
 import qualified Control.Exception as E
 import           Control.Monad ((<=<))
 
--- import qualified Database.PostgreSQL.Simple.Internal as PS
--- import qualified Database.PostgreSQL.LibPQ as PG
-
 aroundAll :: forall a. ((a -> IO ()) -> IO ()) -> SpecWith a -> Spec
 aroundAll withFunc specWith = do
   (var, stopper, asyncer) <- runIO $
@@ -62,7 +59,6 @@ withSetup f = either E.throwIO pure <=< Temp.withDbCache $ \dbCache ->
     withConn db $ \conn -> do
       void $ PS.execute_ conn $
           [sql| CREATE TABLE fruit (name VARCHAR(100) PRIMARY KEY ) |]
---      f conn `finally` (PS.withConnection conn (maybe (print "invalid") (print <=< PG.cancel) <=< PG.getCancel))
       f conn
 
 

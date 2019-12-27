@@ -1,3 +1,6 @@
+# benchmarks
+- The lack a `with` resource api for criterion is annoying
+
 # 0.3.1.1
 - No reason to have a abort take in an action. You can't nest them. This is clearer if the type is `abort :: DBT m a`.
 - Okay well I guess there is a reason. Throwing an abort is different then saying `finally` abort. So I think the current form is useful.
