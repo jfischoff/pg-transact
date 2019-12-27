@@ -1,6 +1,3 @@
-{-# LANGUAGE QuasiQuotes          #-}
-{-# LANGUAGE DeriveDataTypeable   #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 module Database.PostgreSQL.TransactSpec where
 
 import           Control.Monad              (void)

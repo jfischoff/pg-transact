@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving, RecordWildCards, OverloadedStrings #-}
 module Database.PostgreSQL.Transact where
 import Control.Monad.Trans.Reader
 import qualified Database.PostgreSQL.Simple as Simple
