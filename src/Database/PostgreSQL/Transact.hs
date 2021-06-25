@@ -57,7 +57,7 @@ instance (MonadIO m, MonadMask m) => MonadCatch (DBT m) where
     let setup = catch (restore act) $ \e -> do
                   liftIO $ Simple.rollbackToSavepoint conn sp
                     `catch` (\re -> if isNoTransaction re then pure () else throwM re)
-                  if typeRep (Proxy @ Abort) == typeOf e
+                  if typeRep (Proxy @Abort) == typeOf e
                     then (throwM Abort)
                     else unDBT $ handler e
 
