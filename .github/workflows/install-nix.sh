@@ -41,9 +41,3 @@ if [[ $OSTYPE =~ darwin ]]; then
   export NIX_SSL_CERT_FILE=$cert_file
   sudo launchctl setenv NIX_SSL_CERT_FILE "$cert_file"
 fi
-
-# Set paths
-
-# if [[ $INPUT_NIX_PATH != "" ]]; then
-#   echo "NIX_PATH=${INPUT_NIX_PATH}" >> "$GITHUB_ENV"
-# fi

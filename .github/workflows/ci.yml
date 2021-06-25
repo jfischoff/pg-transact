@@ -1,6 +1,6 @@
 name: CI
 
-# Trigger the workflow on push or pull request, but only for the main branch
+# Trigger the workflow on push or pull request, but only for the master branch
 on:
   pull_request:
   push:
@@ -18,14 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/main'
+      if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.ref == 'refs/heads/master'
 
-    - uses: haskell/actions/setup@v1
-      id: setup-haskell-cabal
-      name: Setup Haskell
-      with:
-        ghc-version: ${{ matrix.ghc }}
-        cabal-version: ${{ matrix.cabal }}
     - name: Prepare environment
       run: .github/workflows/setup_ci_env.sh
 
@@ -34,27 +28,45 @@ jobs:
           echo '/usr/lib/postgresql/13/bin/' >> "$GITHUB_PATH"
           echo "/nix/var/nix/profiles/per-user/$USER/profile/bin" >> "$GITHUB_PATH"
           echo "/nix/var/nix/profiles/default/bin" >> "$GITHUB_PATH"
-          echo 'NIX_PATH="nixpkgs=channel:nixos-unstable"' >> "$GITHUB_ENV"
-          echo 'NIXPKGS_ALLOW_BROKEN=1' >> "$GITHUB_ENV"
           echo '$HOME/.ghcup/bin' >> "$GITHUB_PATH"
           echo 'HOME/.cabal/bin' >> "$GITHUB_PATH"
           echo 'HOME/.local/bin' >> "$GITHUB_PATH"
+
+    - name: Configure Darwin Nixpkgs
+      if: matrix.os == 'macos-latest' 
+      run: |
+        echo 'NIX_PATH="nixpkgs=channel:nixpkgs-21.05-darwin"' >> "$GITHUB_ENV"
+
+    - name: Configure Linux Nixpkgs
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo 'NIX_PATH="nixpkgs=channel:nixos-21.05"' >> "$GITHUB_ENV"
+
+    - name: Set GHC version for Nix
+      run: |
+        if [[ ${{matrix.ghc}} == '8.8.4' ]]
+        then echo "GHC='884'" >> "$GITHUB_ENV"
+        elif [[ ${{matrix.ghc}} == '8.10.4' ]]
+        then echo "GHC='8104'" >> "$GITHUB_ENV"
+        elif [[ ${{matrix.ghc}} == '9.0.1' ]]
+        then echo "GHC='901'" >> "$GITHUB_ENV"
+        fi
 
     - name: Install Nix
       run: ./.github/workflows/install-nix.sh
 
     - name: Configure
-      run: nix-shell --run 'cabal configure --enable-tests --enable-benchmarks --test-show-details=direct --disable-optimization --with-compiler="ghc-${{ matrix.ghc }}"' 
+      run: nix-shell --pure -I ${{ env.NIX_PATH }} --argstr ghcVersion ${{env.GHC}} --run 'cabal update && cabal configure --enable-tests --test-show-details=direct --disable-optimization --with-compiler="ghc-${{ matrix.ghc }}"' .github/workflows/shell.nix
 
     - name: Freeze
-      run: nix-shell --run 'cabal freeze'
+      run: nix-shell --pure -I ${{ env.NIX_PATH }} --argstr ghcVersion ${{env.GHC}} --run 'cabal freeze' .github/workflows/shell.nix
  
     - uses: actions/cache@v2
-      name: Cache ~/.cabal/store and .ghcup
+      name: Cache cabal store
       with:
         path: |
-          ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          ${{env.HOME}}/.cabal/store
         key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
 
     - name: Test
-      run: nix-shell --run 'cabal test all'
+      run: nix-shell --pure -I ${{ env.NIX_PATH }} --argstr ghcVersion ${{env.GHC}} --run 'cabal test all' .github/workflows/shell.nix
