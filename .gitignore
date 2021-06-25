@@ -56,3 +56,5 @@ tags
 bin/
 core/
 *.s
+.hspec-failures
+dist-newstyle/
