@@ -1,2 +1,3 @@
-# pg-transact
-[![Travis CI Status](https://travis-ci.org/jfischoff/pg-transact.svg?branch=master)](http://travis-ci.org/jfischoff/pg-transact)
+# pg-transact ![Hackage][shield] [![CI](https://github.com/jfischoff/pg-transact/actions/workflows/ci.yml/badge.svg)](https://github.com/jfischoff/pg-transact/actions/workflows/ci.yml)
+
+[shield]: https://img.shields.io/hackage/v/pg-transact
