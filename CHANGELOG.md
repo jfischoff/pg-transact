@@ -1,3 +1,5 @@
+- 0.3.2.0
+  - Support GHC 9.0.1
 - 0.3.1.1
   - #15 Remove unnecessary `ROLLBACK` call in `abort`
 

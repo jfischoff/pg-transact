@@ -1,17 +1,18 @@
 name:                pg-transact
-version:             0.3.1.1
-synopsis: A postgresql-simple transaction monad
-description: Another postgresql-simple transaction monad
+version:             0.3.2.0
+synopsis:            A postgresql-simple transaction monad
+description:         A postgresql-simple transaction monad
 homepage:            https://github.com/jfischoff/pg-transact#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Jonathan Fischoff
 maintainer:          jonathangfischoff@gmail.com
-copyright:           2017 Jonathan Fischoff
+copyright:           2021 Jonathan Fischoff
 category:            Web
 build-type:          Simple
-extra-source-files: README.md
-                  , CHANGELOG.md
+extra-source-files:
+    README.md
+  , CHANGELOG.md
 cabal-version:       >=1.10
 
 
@@ -24,7 +25,7 @@ library
     , OverloadedStrings
   hs-source-dirs:      src
   exposed-modules:     Database.PostgreSQL.Transact
-  build-depends:       base >= 4.7 && < 5
+  build-depends: base >= 4.7 && < 5
                , postgresql-simple
                , transformers
                , monad-control
